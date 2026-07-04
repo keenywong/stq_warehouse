@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogixScan - Intelligent Warehouse Inbound Engine</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- html5-qrcode for Camera Scanning -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
+    <!-- JsBarcode for Linear Barcode Generation -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            950: '#030712',
+                        }
+                    },
+                    boxShadow: {
+                        'glow-indigo': '0 0 20px -2px rgba(99, 102, 241, 0.4)',
+                        'glow-emerald': '0 0 20px -2px rgba(16, 185, 129, 0.4)',
+                        'glow-laser': '0 0 15px #ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* ─── Custom Scrollbar ──────────────────────────────────── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(15,23,42,0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 4px; transition: background 0.3s; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.55); }
+
+        /* ─── Aurora Animated Background Mesh ──────────────────── */
+        @keyframes aurora-shift {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        body {
+            background: linear-gradient(-45deg, #030712, #0f172a, #0d1424, #0a0f1e, #111827);
+            background-size: 400% 400%;
+            animation: aurora-shift 20s ease infinite;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 40% at 20% 20%, rgba(99,102,241,0.06) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 60% at 80% 80%, rgba(16,185,129,0.05) 0%, transparent 70%),
+                radial-gradient(ellipse 40% 50% at 60% 10%, rgba(139,92,246,0.04) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        body > * { position: relative; z-index: 1; }
+
+        /* ─── Enhanced Glassmorphism Card ───────────────────────── */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(24px) saturate(1.3);
+            -webkit-backdrop-filter: blur(24px) saturate(1.3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        /* ─── Column Entrance Animations ───────────────────────── */
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .anim-col { animation: slideInUp 0.6s ease-out both; }
+        .anim-delay-1 { animation-delay: 0.05s; }
+        .anim-delay-2 { animation-delay: 0.15s; }
+        .anim-delay-3 { animation-delay: 0.25s; }
+
+        /* ─── Scan Input Focus Glow ─────────────────────────────── */
+        #scan-input:focus {
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.35), 0 0 20px rgba(99,102,241,0.2), 0 0 40px rgba(99,102,241,0.08);
+        }
+
+        /* ─── Scan Laser Animation ──────────────────────────────── */
+        @keyframes scan-laser {
+            0%   { top: 0%; opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        .laser-line {
+            position: absolute; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #ef4444 30%, #f97316 50%, #ef4444 70%, transparent);
+            box-shadow: 0 0 12px #ef4444, 0 0 4px #f97316;
+            animation: scan-laser 2.5s infinite linear;
+        }
+
+        /* ─── Camera Bracket Pulse ──────────────────────────────── */
+        @keyframes bracket-pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50%       { opacity: 1;   transform: scale(1.08); }
+        }
+        .scanner-bracket {
+            position: absolute; width: 22px; height: 22px;
+            border-color: #6366f1; border-width: 0;
+            animation: bracket-pulse 2.5s ease-in-out infinite;
+        }
+        .bracket-tl { top: 12px; left: 12px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 4px; }
+        .bracket-tr { top: 12px; right: 12px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 4px; animation-delay: 0.3s; }
+        .bracket-bl { bottom: 12px; left: 12px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 4px; animation-delay: 0.6s; }
+        .bracket-br { bottom: 12px; right: 12px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 4px; animation-delay: 0.9s; }
+
+        /* ─── Mode Toggle Sliding Pill ──────────────────────────── */
+        .mode-pill-track { position: relative; }
+        .mode-pill-indicator {
+            position: absolute;
+            top: 2px; bottom: 2px;
+            border-radius: 8px;
+            transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .mode-btn { position: relative; z-index: 1; }
+
+        /* ─── Panel Fade Transitions ────────────────────────────── */
+        @keyframes panelFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .panel-visible { animation: panelFadeIn 0.25s ease-out both; }
+
+        /* ─── Manifest Row Entry Animation ──────────────────────── */
+        @keyframes rowSlideIn {
+            from { opacity: 0; transform: translateX(16px); background-color: rgba(99,102,241,0.08); }
+            to   { opacity: 1; transform: translateX(0); background-color: transparent; }
+        }
+        .row-new { animation: rowSlideIn 0.4s ease-out both; }
+
+        /* ─── Stat Counter Pop ───────────────────────────────────── */
+        @keyframes stat-pop {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.3); }
+            70%  { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+        .stat-popping { animation: stat-pop 0.35s ease-out; }
+
+        /* ─── Last Scan Badge Fade-in ───────────────────────────── */
+        @keyframes badgeFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .last-scan-badge { animation: badgeFadeIn 0.3s ease-out both; }
+
+        /* ─── Logo Glow Ring ─────────────────────────────────────── */
+        @keyframes logo-ring {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5); }
+            50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
+        }
+        .logo-ring { animation: logo-ring 2s ease-in-out infinite; }
+
+        /* ─── Toast Slide-In/Out ────────────────────────────────── */
+        @keyframes toastIn  { from { opacity:0; transform:translateX(24px) scale(0.97); } to { opacity:1; transform:translateX(0) scale(1); } }
+        @keyframes toastOut { from { opacity:1; transform:translateX(0) scale(1); } to { opacity:0; transform:translateX(24px) scale(0.97); } }
+        .toast-enter { animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .toast-exit  { animation: toastOut 0.25s ease-in both; }
+
+        /* ─── Toast Progress Bar ────────────────────────────────── */
+        @keyframes toastProgress { from { width: 100%; } to { width: 0%; } }
+        .toast-progress { animation: toastProgress linear forwards; }
+
+        /* ─── Print Media ───────────────────────────────────────── */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                font-size: 12px;
+                animation: none !important;
+            }
+            body::before { display: none !important; }
+            .no-print { display: none !important; }
+            .print-area {
+                width: 100% !important;
+                position: absolute;
+                left: 0; top: 0; margin: 0; padding: 0;
+                background: white !important;
+            }
+            .print-style-labels {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 15px !important;
+                padding: 10px !important;
+            }
+            .print-style-labels .barcode-print-row {
+                border: 1px dashed #000 !important;
+                background: white !important;
+                color: black !important;
+                padding: 15px !important;
+                text-align: center !important;
+                page-break-inside: avoid !important;
+                border-radius: 4px !important;
+                box-shadow: none !important;
+            }
+            .print-style-labels .barcode-print-row .print-meta {
+                margin-top: 5px !important;
+                font-family: monospace !important;
+                font-size: 11px !important;
+            }
+            .print-style-manifest { width:100% !important; border-collapse:collapse !important; }
+            .print-style-manifest th, .print-style-manifest td { border:1px solid #ddd !important; padding:8px !important; text-align:left !important; }
+            .print-style-manifest th { background-color:#f2f2f2 !important; color:black !important; }
+            .barcode-bg-wrapper { background:white !important; padding:5px !important; border:1px solid #ccc !important; display:inline-block !important; }
+            .barcode-bg-wrapper svg { filter:none !important; }
+        }
+    </style>
+
+</head>
+
+<body class="text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none no-print"></div>
+
+    <!-- Main Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 transition-all duration-300 no-print">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo Section -->
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 logo-ring">
+                    <i data-lucide="scan-line" class="h-6 w-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 via-violet-400 to-emerald-400 bg-clip-text text-transparent">
+                        LOGIXSCAN
+                    </h1>
+                    <p class="text-xs text-slate-500 font-medium">Intelligent Warehouse Inbound Engine</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Statistics Banner -->
+            <div class="flex flex-wrap items-center gap-2 md:gap-3 bg-slate-900/60 border border-slate-800/80 px-4 py-2.5 rounded-xl backdrop-blur-sm">
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
+                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Live</span>
+                </div>
+                <div class="h-4 w-px bg-slate-800"></div>
+                <!-- Active Mode Badge -->
+                <div id="header-mode-badge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                    <i data-lucide="scissors" class="h-3 w-3"></i>
+                    <span id="header-mode-text">Mode A · Strip</span>
+                </div>
+                <div class="h-4 w-px bg-slate-800"></div>
+                <div class="text-xs flex items-center gap-1.5">
+                    <i data-lucide="scan" class="h-3.5 w-3.5 text-indigo-400"></i>
+                    <span class="text-slate-400">Total:</span>
+                    <span id="stat-total" class="font-mono font-bold text-indigo-400 ml-0.5">0</span>
+                </div>
+                <div class="h-4 w-px bg-slate-800"></div>
+                <div class="text-xs flex items-center gap-1.5">
+                    <i data-lucide="wand-2" class="h-3.5 w-3.5 text-amber-400"></i>
+                    <span class="text-slate-400">Modified:</span>
+                    <span id="stat-modified" class="font-mono font-bold text-amber-400 ml-0.5">0</span>
+                </div>
+                <div class="h-4 w-px bg-slate-800"></div>
+                <div class="text-xs flex items-center gap-1.5">
+                    <i data-lucide="zap" class="h-3.5 w-3.5 text-emerald-400"></i>
+                    <span class="text-slate-400">Pass:</span>
+                    <span id="stat-direct" class="font-mono font-bold text-emerald-400 ml-0.5">0</span>
+                </div>
+                <div class="h-4 w-px bg-slate-800"></div>
+                <div class="text-xs flex items-center gap-1.5">
+                    <i data-lucide="activity" class="h-3.5 w-3.5 text-violet-400"></i>
+                    <span class="text-slate-400">Rate:</span>
+                    <span id="stat-rate" class="font-mono font-bold text-violet-400 ml-0.5">0/min</span>
+                </div>
+            </div>
+
+            <!-- System Info / Connectivity -->
+            <div class="flex items-center gap-4 text-xs">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400">
+                    <i data-lucide="database" class="h-3.5 w-3.5 text-indigo-400"></i>
+                    <span class="font-medium">Local Storage Sync</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-slate-500">
+                    <i data-lucide="clock" class="h-3.5 w-3.5"></i>
+                    <span id="current-time" class="font-mono">10:52 AM</span>
+                </div>
+            </div>
+            
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 py-8 no-print">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <!-- ================= COLUMN 1: INBOUND STREAM ================= -->
+            <section class="lg:col-span-4 flex flex-col gap-6 h-full anim-col anim-delay-1">
+                
+                <!-- Section Header Card -->
+                <div class="glass-card rounded-2xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none"></div>
+                    
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                <i data-lucide="arrow-down-left-from-circle" class="h-5 w-5 text-indigo-400"></i>
+                            </div>
+                            <h2 class="font-bold text-slate-200 tracking-wide">1. INBOUND STREAM</h2>
+                        </div>
+                        <span class="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded-full tracking-wider uppercase">Active Receiver</span>
+                    </div>
+
+                    <!-- Hardware Barcode Gun Input (Autofocused) -->
+                    <div class="relative">
+                        <label for="scan-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                            Physical Barcode Gun Input
+                        </label>
+                        <form id="scan-form" class="relative group/input">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                <i data-lucide="barcode" id="input-status-icon" class="h-5 w-5 text-slate-400 group-focus-within/input:text-indigo-400 transition-colors"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="scan-input" 
+                                autocomplete="off"
+                                autofocus
+                                placeholder="Awaiting hardware gun scan..."
+                                class="w-full pl-11 pr-24 py-3.5 bg-slate-950/60 border border-slate-800 rounded-xl font-mono text-sm tracking-widest text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:shadow-glow-indigo transition-all duration-300"
+                            >
+                            <div class="absolute inset-y-1.5 right-1.5 flex items-center">
+                                <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-semibold px-2 py-1.5 rounded-lg flex items-center gap-1 font-mono uppercase">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                                    Focused
+                                </span>
+                            </div>
+                        </form>
+                        <p class="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5 font-medium">
+                            <i data-lucide="info" class="h-3 w-3 text-indigo-400"></i>
+                            Focus recaptures 400ms after entry to support hands-free scanning.
+                        </p>
+                        <!-- Last Scan Preview Badge -->
+                        <div id="last-scan-preview" class="hidden mt-2.5 flex items-center gap-2 px-3 py-2 bg-slate-950/70 border border-slate-800/60 rounded-lg">
+                            <i data-lucide="clock" class="h-3.5 w-3.5 text-slate-600 shrink-0"></i>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[9px] font-bold text-slate-600 uppercase tracking-wider">Last Scan</p>
+                                <p id="last-scan-text" class="font-mono text-xs text-slate-400 truncate"></p>
+                            </div>
+                            <span id="last-scan-badge" class="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase"></span>
+                        </div>
+                    </div>
+
+                    <!-- Live Smartphone Camera Scanner Viewport -->
+                    <div class="flex flex-col gap-3">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            Live Camera Scanner Viewport
+                        </label>
+                        
+                        <div class="relative w-full aspect-video rounded-xl bg-slate-950/90 border border-slate-800 overflow-hidden flex items-center justify-center">
+                            
+                            <!-- Scanner viewfinder brackets -->
+                            <div class="scanner-bracket bracket-tl"></div>
+                            <div class="scanner-bracket bracket-tr"></div>
+                            <div class="scanner-bracket bracket-bl"></div>
+                            <div class="scanner-bracket bracket-br"></div>
+                            
+                            <!-- Laser line overlay -->
+                            <div id="scanner-laser" class="laser-line hidden"></div>
+                            
+                            <!-- Visual Flash overlay on successful scan -->
+                            <div id="scanner-flash" class="absolute inset-0 bg-emerald-400 opacity-0 transition-opacity duration-150 pointer-events-none z-10"></div>
+                            
+                            <!-- html5-qrcode target render box -->
+                            <div id="reader" class="w-full h-full object-cover"></div>
+                            
+                            <!-- Viewport Placeholder when camera is inactive -->
+                            <div id="scanner-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/90 text-slate-500 p-4 text-center">
+                                <div class="h-12 w-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
+                                    <i data-lucide="camera-off" class="h-6 w-6 text-slate-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-400">Camera Feed Offline</p>
+                                    <p class="text-xs text-slate-600 mt-1 max-w-[200px]">Select a source below and start scanner to use smartphone camera</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Camera Control Panel -->
+                        <div class="flex flex-col gap-3 bg-slate-950/40 border border-slate-900 p-3 rounded-xl">
+                            
+                            <!-- Camera Select Dropdown -->
+                            <div class="flex items-center gap-2">
+                                <label for="camera-select" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Camera Src:</label>
+                                <select 
+                                    id="camera-select" 
+                                    class="flex-grow bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors"
+                                >
+                                    <option value="">Awaiting Device Detection...</option>
+                                </select>
+                            </div>
+
+                            <!-- Start/Stop Toggle & Audio Beep Settings -->
+                            <div class="flex items-center gap-2">
+                                <button 
+                                    type="button" 
+                                    id="btn-toggle-scanner"
+                                    class="flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-xs font-semibold text-white transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                                >
+                                    <i data-lucide="video" id="toggle-scanner-icon" class="h-4 w-4"></i>
+                                    <span id="toggle-scanner-text">Start Scanner</span>
+                                </button>
+                                
+                                <button 
+                                    type="button" 
+                                    id="btn-toggle-beep"
+                                    title="Toggle audio beep on scan"
+                                    class="flex items-center justify-center h-8.5 w-8.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200 hover:border-slate-700 active:scale-95 transition-all cursor-pointer"
+                                >
+                                    <i data-lucide="volume-2" id="beep-status-icon" class="h-4.5 w-4.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= COLUMN 2: MANIPULATION LOGIC ENGINE ================= -->
+            <section class="lg:col-span-4 flex flex-col gap-6 h-full anim-col anim-delay-2">
+                <div class="glass-card rounded-2xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none"></div>
+
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <i data-lucide="cpu" class="h-5 w-5 text-amber-400"></i>
+                            </div>
+                            <h2 class="font-bold text-slate-200 tracking-wide">2. MANIPULATION LOGIC</h2>
+                        </div>
+                        <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full tracking-wider uppercase">Active Engine</span>
+                    </div>
+
+                    <!-- Mode Toggle Switches -->
+                    <div>
+                        <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">Active Logic Mode</span>
+                        <div id="mode-toggle-track" class="mode-pill-track grid grid-cols-3 p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl gap-1">
+                            <!-- Sliding pill indicator -->
+                            <div id="mode-pill" class="mode-pill-indicator bg-indigo-500/15 border border-indigo-500/20"></div>
+                            <button 
+                                id="mode-a-btn" 
+                                type="button"
+                                class="mode-btn py-2.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-colors flex flex-col items-center justify-center gap-0.5 cursor-pointer text-indigo-400"
+                            >
+                                <i data-lucide="scissors" class="h-3.5 w-3.5"></i>
+                                <span>Mode A</span>
+                                <span class="text-[8px] font-medium text-indigo-400/60 -mt-0.5">Strip</span>
+                            </button>
+                            <button 
+                                id="mode-b-btn" 
+                                type="button"
+                                class="mode-btn py-2.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-colors flex flex-col items-center justify-center gap-0.5 cursor-pointer text-slate-500"
+                            >
+                                <i data-lucide="replace" class="h-3.5 w-3.5"></i>
+                                <span>Mode B</span>
+                                <span class="text-[8px] font-medium text-slate-600 -mt-0.5">Replace</span>
+                            </button>
+                            <button 
+                                id="mode-c-btn" 
+                                type="button"
+                                class="mode-btn py-2.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-colors flex flex-col items-center justify-center gap-0.5 cursor-pointer text-slate-500"
+                            >
+                                <i data-lucide="slice" class="h-3.5 w-3.5"></i>
+                                <span>Mode C</span>
+                                <span class="text-[8px] font-medium text-slate-600 -mt-0.5">Cut</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Config Forms -->
+                    <div class="flex-grow">
+                        
+                        <!-- Mode A Panel (Strip) -->
+                        <div id="panel-mode-a" class="flex flex-col gap-4">
+                            <div class="p-3 bg-indigo-950/10 border border-indigo-900/30 rounded-xl">
+                                <h4 class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                                    <i data-lucide="terminal" class="h-3.5 w-3.5"></i>
+                                    Mode A Configuration
+                                </h4>
+                                <p class="text-[11px] text-slate-400 mt-1">Strips prefix or suffix characters from the raw barcode value before printing.</p>
+                            </div>
+
+                            <div class="flex flex-col gap-3">
+                                <div>
+                                    <label for="mode-a-prefix" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Strip Prefix</label>
+                                    <input 
+                                        type="text" 
+                                        id="mode-a-prefix" 
+                                        placeholder="e.g. SX" 
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                                    >
+                                </div>
+                                
+                                <div>
+                                    <label for="mode-a-suffix" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Strip Suffix</label>
+                                    <input 
+                                        type="text" 
+                                        id="mode-a-suffix" 
+                                        placeholder="e.g. -A" 
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                                    >
+                                </div>
+
+                                <div class="flex items-center justify-between border-t border-slate-900 pt-3">
+                                    <span class="text-xs font-semibold text-slate-300">Remove All Whitespaces</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="mode-a-trim" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mode B Panel (Find & Replace) -->
+                        <div id="panel-mode-b" class="hidden flex flex-col gap-4">
+                            <div class="p-3 bg-amber-950/10 border border-amber-900/30 rounded-xl">
+                                <h4 class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                                    <i data-lucide="terminal" class="h-3.5 w-3.5"></i>
+                                    Mode B Configuration
+                                </h4>
+                                <p class="text-[11px] text-slate-400 mt-1">Finds matched strings or regular expressions and replaces them dynamically.</p>
+                            </div>
+
+                            <div class="flex flex-col gap-3">
+                                <div>
+                                    <label for="mode-b-find" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Find String / Regex</label>
+                                    <input 
+                                        type="text" 
+                                        id="mode-b-find" 
+                                        placeholder="e.g. ABC" 
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                                    >
+                                </div>
+                                
+                                <div>
+                                    <label for="mode-b-replace" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Replace With</label>
+                                    <input 
+                                        type="text" 
+                                        id="mode-b-replace" 
+                                        placeholder="e.g. XYZ" 
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                                    >
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3 border-t border-slate-900 pt-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-semibold text-slate-300">Regex Mode</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="mode-b-regex" class="sr-only peer">
+                                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between border-l border-slate-950 pl-3">
+                                        <span class="text-xs font-semibold text-slate-300">Ignore Case</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="mode-b-case" class="sr-only peer" checked>
+                                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mode C Panel (Positional) -->
+                        <div id="panel-mode-c" class="hidden flex flex-col gap-4">
+                            <div class="p-3 bg-emerald-950/10 border border-emerald-900/30 rounded-xl">
+                                <h4 class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                                    <i data-lucide="terminal" class="h-3.5 w-3.5"></i>
+                                    Mode C Configuration
+                                </h4>
+                                <p class="text-[11px] text-slate-400 mt-1">Removes a set number of characters from the front, middle, or last position of the barcode.</p>
+                            </div>
+
+                            <div class="flex flex-col gap-3">
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label for="mode-c-first-n" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Front N</label>
+                                        <input 
+                                            type="number" 
+                                            id="mode-c-first-n" 
+                                            min="0" 
+                                            placeholder="0"
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                                        >
+                                    </div>
+                                    <div>
+                                        <label for="mode-c-mid-n" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Middle N</label>
+                                        <input 
+                                            type="number" 
+                                            id="mode-c-mid-n" 
+                                            min="0" 
+                                            placeholder="0"
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                                        >
+                                    </div>
+                                    <div>
+                                        <label for="mode-c-last-n" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Last N</label>
+                                        <input 
+                                            type="number" 
+                                            id="mode-c-last-n" 
+                                            min="0" 
+                                            placeholder="0"
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Supervisor Live Sandbox Preview Playground -->
+                    <div class="border-t border-slate-800/80 pt-4 mt-2">
+                        <label for="sandbox-input" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i data-lucide="play" class="h-3 w-3 text-emerald-400"></i>
+                            Live Sandbox Test Area
+                        </label>
+                        <div class="flex flex-col gap-2.5">
+                            <input 
+                                type="text" 
+                                id="sandbox-input" 
+                                placeholder="Type a test barcode here..." 
+                                class="w-full bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 transition-colors"
+                            >
+                            <div class="flex items-center gap-1 text-slate-700">
+                                <i data-lucide="chevrons-down" class="h-3.5 w-3.5 animate-bounce"></i>
+                                <span class="text-[9px] uppercase tracking-widest font-bold">Engine Output</span>
+                            </div>
+                            <div class="p-3 bg-slate-950 border border-slate-900 rounded-lg min-h-[48px] flex flex-col justify-center gap-1.5">
+                                <div id="sandbox-output" class="font-mono text-sm text-emerald-400 font-semibold break-all">
+                                    <span class="text-slate-600 italic font-normal">Awaiting sandbox input...</span>
+                                </div>
+                                <div id="sandbox-diff" class="hidden text-[11px] text-slate-500 border-t border-slate-900/80 pt-1.5 mt-0.5">
+                                    <span class="text-[8px] font-bold text-slate-600 uppercase tracking-wider mr-1">Trace:</span>
+                                    <span id="sandbox-diff-trace"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ================= COLUMN 3: GENERATED MANIFEST GRID ================= -->
+            <section class="lg:col-span-4 flex flex-col gap-6 h-full anim-col anim-delay-3">
+                
+                <!-- Section Header / Main Container Card -->
+                <div class="glass-card rounded-2xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                <i data-lucide="table-properties" class="h-5 w-5 text-emerald-400"></i>
+                            </div>
+                            <h2 class="font-bold text-slate-200 tracking-wide">3. SCAN MANIFEST</h2>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="record-count-badge" class="hidden text-[10px] font-bold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full tracking-wider font-mono">0 records</span>
+                            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full tracking-wider uppercase">Active Data Stream</span>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar Actions Panel -->
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button 
+                            type="button" 
+                            id="btn-export-csv"
+                            class="flex-grow flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 active:scale-[0.98] text-xs font-bold text-white transition-all shadow-md shadow-emerald-600/10 cursor-pointer"
+                        >
+                            <i data-lucide="file-spreadsheet" class="h-4.5 w-4.5"></i>
+                            Export CSV
+                        </button>
+                        
+                        <button 
+                            type="button" 
+                            id="btn-print-layout"
+                            class="flex-grow flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-500 hover:from-indigo-500 hover:to-violet-400 active:scale-[0.98] text-xs font-bold text-white transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                        >
+                            <i data-lucide="printer" class="h-4.5 w-4.5"></i>
+                            Print Layout
+                        </button>
+
+                        <button 
+                            type="button" 
+                            id="btn-clear-all"
+                            class="flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400 active:scale-95 transition-all cursor-pointer text-[10px] font-bold"
+                            title="Clear Session History"
+                        >
+                            <i data-lucide="trash-2" class="h-4 w-4"></i>
+                            <span id="clear-btn-label">Clear</span>
+                        </button>
+                    </div>
+
+                    <!-- Printing / Filter Options -->
+                    <div class="flex items-center justify-between gap-3 bg-slate-950/50 p-2.5 rounded-xl border border-slate-900">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Print:</span>
+                            <select 
+                                id="print-mode-select" 
+                                class="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500"
+                            >
+                                <option value="manifest">Audit Manifest</option>
+                                <option value="labels">Sticker Labels</option>
+                            </select>
+                        </div>
+                        <div class="relative flex-grow max-w-[140px]">
+                            <input 
+                                type="text" 
+                                id="filter-input" 
+                                placeholder="Search..."
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-6.5 pr-2 py-1 text-[11px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                            >
+                            <i data-lucide="search" class="absolute left-2 top-2 h-3.5 w-3.5 text-slate-600"></i>
+                        </div>
+                    </div>
+
+                    <!-- Data Grid Container (Equal Height Scrollable) -->
+                    <div class="relative overflow-y-auto max-h-[350px] pr-1.5 rounded-xl border border-slate-900">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-950/80 sticky top-0 border-b border-slate-900 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <th class="py-2.5 px-3 text-center w-10">#</th>
+                                    <th class="py-2.5 px-3 w-16">Time</th>
+                                    <th class="py-2.5 px-3">Trace (Raw)</th>
+                                    <th class="py-2.5 px-3 text-center">Barcode Label</th>
+                                    <th class="py-2.5 px-2 text-center w-8"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="manifest-tbody" class="divide-y divide-slate-900 text-xs">
+                                <!-- Generated Dynamic Rows -->
+                            </tbody>
+                        </table>
+
+                        <!-- Empty State Viewport -->
+                        <div id="manifest-empty" class="hidden flex flex-col items-center justify-center gap-3 py-16 px-4 text-center text-slate-600">
+                            <div class="h-14 w-14 rounded-full bg-slate-950 border border-slate-900 flex items-center justify-center">
+                                <i data-lucide="package-search" class="h-7 w-7 text-slate-700"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-400">Stream Awaiting Data</p>
+                                <p class="text-xs text-slate-600 mt-1 max-w-[200px]">Barcode inputs from scanner guns or camera are generated here.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- ================= PRINTING AREA STAGE ================= -->
+    <div id="print-stage" class="hidden print-area">
+        <!-- Rendered purely during print triggers -->
+    </div>
+
+    <!-- Footer Stats / Copyright -->
+    <footer class="border-t border-slate-900 bg-slate-950/40 py-5 mt-auto no-print">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-slate-600 text-xs">
+            <div>
+                <p>&copy; 2026 LogixScan Systems Inc. Enterprise Warehouse Edition.</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#" onclick="window.location.reload(); return false;" class="hover:text-indigo-400 transition-colors">Reload Session</a>
+                <span>&bull;</span>
+                <span class="font-mono text-[10px]">v1.4.2-native</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Native JavaScript Application Logic -->
+    <script>
+        // Global Application State
+        const state = {
+            history: [],
+            config: {
+                mode: 'A', // 'A', 'B', or 'C'
+                modeA: {
+                    prefix: 'SX',
+                    suffix: '',
+                    stripWhitespace: false
+                },
+                modeB: {
+                    find: 'ABC',
+                    replace: 'XYZ',
+                    useRegex: false,
+                    caseInsensitive: true
+                },
+                modeC: {
+                    stripFirstN: 0,
+                    stripLastN: 0,
+                    stripMidN: 0
+                }
+            },
+            audioBeepEnabled: true
+        };
+
+        // DOM Element Cache
+        const DOM = {
+            scanForm: document.getElementById('scan-form'),
+            scanInput: document.getElementById('scan-input'),
+            inputStatusIcon: document.getElementById('input-status-icon'),
+            currentTime: document.getElementById('current-time'),
+            
+            // Statistics
+            statTotal: document.getElementById('stat-total'),
+            statModified: document.getElementById('stat-modified'),
+            statDirect: document.getElementById('stat-direct'),
+            
+            // Camera Elements
+            cameraSelect: document.getElementById('camera-select'),
+            btnToggleScanner: document.getElementById('btn-toggle-scanner'),
+            toggleScannerIcon: document.getElementById('toggle-scanner-icon'),
+            toggleScannerText: document.getElementById('toggle-scanner-text'),
+            scannerLaser: document.getElementById('scanner-laser'),
+            scannerFlash: document.getElementById('scanner-flash'),
+            scannerPlaceholder: document.getElementById('scanner-placeholder'),
+            btnToggleBeep: document.getElementById('btn-toggle-beep'),
+            beepStatusIcon: document.getElementById('beep-status-icon'),
+
+            // Logic Modes
+            modeABtn: document.getElementById('mode-a-btn'),
+            modeBBtn: document.getElementById('mode-b-btn'),
+            modeCBtn: document.getElementById('mode-c-btn'),
+            panelModeA: document.getElementById('panel-mode-a'),
+            panelModeB: document.getElementById('panel-mode-b'),
+            panelModeC: document.getElementById('panel-mode-c'),
+            
+            // Mode A Inputs
+            modeAPrefix: document.getElementById('mode-a-prefix'),
+            modeASuffix: document.getElementById('mode-a-suffix'),
+            modeATrim: document.getElementById('mode-a-trim'),
+
+            // Mode B Inputs
+            modeBFind: document.getElementById('mode-b-find'),
+            modeBReplace: document.getElementById('mode-b-replace'),
+            modeBRegex: document.getElementById('mode-b-regex'),
+            modeBCase: document.getElementById('mode-b-case'),
+
+            // Mode C Inputs
+            modeCFirstN: document.getElementById('mode-c-first-n'),
+            modeCMidN: document.getElementById('mode-c-mid-n'),
+            modeCLastN: document.getElementById('mode-c-last-n'),
+
+            // Sandbox
+            sandboxInput: document.getElementById('sandbox-input'),
+            sandboxOutput: document.getElementById('sandbox-output'),
+
+            // Manifest Output Grid
+            manifestTbody: document.getElementById('manifest-tbody'),
+            manifestEmpty: document.getElementById('manifest-empty'),
+            filterInput: document.getElementById('filter-input'),
+            printModeSelect: document.getElementById('print-mode-select'),
+            
+            // Actions
+            btnExportCsv: document.getElementById('btn-export-csv'),
+            btnPrintLayout: document.getElementById('btn-print-layout'),
+            btnClearAll: document.getElementById('btn-clear-all'),
+
+            // Print stage
+            printStage: document.getElementById('print-stage')
+        };
+
+        // Scanner controller instance
+        let html5QrScanner = null;
+        let selectedCameraId = null;
+
+        // Auto-focus state variables
+        let focusTimer = null;
+
+        // -------------------------------------------------------------
+        // INITIALIZATION & STATE MANAGEMENT
+        // -------------------------------------------------------------
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadHistory();
+            initHeaderTime();
+            initEventListeners();
+            initSandbox();
+            initAutoBarcodeFocus();
+            
+            // Detect camera sources
+            detectScannerDevices();
+
+            // Refresh UI
+            renderManifestTable();
+            updateDashboardStats();
+            
+            // Start focus loop immediately
+            triggerFocusRecapture();
+        });
+
+        // Save states to localStorage
+        function saveConfig() {
+            localStorage.setItem('logixscan_config', JSON.stringify(state.config));
+        }
+
+         function loadConfig() {
+            const saved = localStorage.getItem('logixscan_config');
+            if (saved) {
+                try {
+                    state.config = JSON.parse(saved);
+                    // Bind values back to configuration fields
+                    DOM.modeAPrefix.value = state.config.modeA.prefix || '';
+                    DOM.modeASuffix.value = state.config.modeA.suffix || '';
+                    DOM.modeATrim.checked = !!state.config.modeA.stripWhitespace;
+                    // Migration guard: ensure modeC exists in old saved configs
+                    if (!state.config.modeC) {
+                        state.config.modeC = { stripFirstN: 0, stripLastN: 0, stripMidN: 0 };
+                    }
+                    DOM.modeCFirstN.value = state.config.modeC.stripFirstN || '';
+                    DOM.modeCMidN.value = state.config.modeC.stripMidN || '';
+                    DOM.modeCLastN.value = state.config.modeC.stripLastN || '';
+
+                    DOM.modeBFind.value = state.config.modeB.find || '';
+                    DOM.modeBReplace.value = state.config.modeB.replace || '';
+                    DOM.modeBRegex.checked = !!state.config.modeB.useRegex;
+                    DOM.modeBCase.checked = !!state.config.modeB.caseInsensitive;
+
+                    // Apply selected mode visual layout
+                    setLogicMode(state.config.mode);
+                } catch (e) {
+                    console.error("Failed parsing configurations", e);
+                }
+            }
+        }
+
+        function saveHistory() {
+            localStorage.setItem('logixscan_history', JSON.stringify(state.history));
+        }
+
+        function loadHistory() {
+            const saved = localStorage.getItem('logixscan_history');
+            if (saved) {
+                try {
+                    state.history = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Failed parsing scan history", e);
+                }
+            }
+        }
+
+        function initHeaderTime() {
+            const updateTime = () => {
+                const now = new Date();
+                DOM.currentTime.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            };
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        // -------------------------------------------------------------
+        // AUTOMATIC FOCUS LOOP (PHYSICAL BARCODE GUNS SUPPORT)
+        // -------------------------------------------------------------
+        
+        function initAutoBarcodeFocus() {
+            // Re-grab focus whenever the page receives click events
+            document.addEventListener('click', (e) => {
+                const activeEl = e.target;
+                if (!activeEl || !activeEl.tagName) return;
+
+                // Determine if we clicked on an input field inside Column 2 (Manipulation settings)
+                // or search filter box, so we do not steal focus while typing settings
+                const isFormInput = activeEl.tagName === 'INPUT' || 
+                                    activeEl.tagName === 'SELECT' || 
+                                    activeEl.tagName === 'TEXTAREA' || 
+                                    (activeEl.closest && activeEl.closest('button'));
+
+                if (isFormInput && activeEl.id !== 'scan-input') {
+                    // User is modifying config. Cancel any pending focus recaptures.
+                    if (focusTimer) clearTimeout(focusTimer);
+                    
+                    // Mark manual input icon as inactive/yellow status
+                    DOM.inputStatusIcon.classList.remove('text-indigo-400');
+                    DOM.inputStatusIcon.classList.add('text-amber-500');
+                    return;
+                }
+
+                // If clicking background or non-interactive, schedule focus recapture
+                triggerFocusRecapture();
+            });
+
+            // Monitor scan-input blur to re-trigger focus loop
+            DOM.scanInput.addEventListener('blur', () => {
+                // Wait to make sure another configuration field didn't request focus
+                setTimeout(() => {
+                    const activeEl = document.activeElement;
+                    const isConfigEl = activeEl && (
+                        activeEl.tagName === 'INPUT' || 
+                        activeEl.tagName === 'SELECT' || 
+                        activeEl.tagName === 'TEXTAREA'
+                    ) && activeEl.id !== 'scan-input';
+                    
+                    if (!isConfigEl) {
+                        triggerFocusRecapture();
+                    }
+                }, 100);
+            });
+
+            DOM.scanInput.addEventListener('focus', () => {
+                DOM.inputStatusIcon.classList.remove('text-slate-400', 'text-amber-500');
+                DOM.inputStatusIcon.classList.add('text-indigo-400');
+            });
+        }
+
+        function triggerFocusRecapture() {
+            if (focusTimer) clearTimeout(focusTimer);
+            
+            focusTimer = setTimeout(() => {
+                const activeEl = document.activeElement;
+                const isConfigEl = activeEl && (
+                    activeEl.tagName === 'INPUT' || 
+                    activeEl.tagName === 'SELECT' || 
+                    activeEl.tagName === 'TEXTAREA'
+                ) && activeEl.id !== 'scan-input';
+
+                if (!isConfigEl) {
+                    DOM.scanInput.focus();
+                    DOM.scanInput.select();
+                }
+            }, 400); // 400ms recapture delay as specified
+        }
+
+        // -------------------------------------------------------------
+        // LOGIC MANIPULATION ENGINE (CORE CALCULATIONS)
+        // -------------------------------------------------------------
+        
+        function applyEngineLogic(text) {
+            if (!text) return "";
+            let result = text;
+
+            if (state.config.mode === 'A') {
+                const prefix = state.config.modeA.prefix;
+                const suffix = state.config.modeA.suffix;
+                const trimSpaces = state.config.modeA.stripWhitespace;
+
+                if (trimSpaces) {
+                    result = result.replace(/\s+/g, '');
+                }
+                
+                if (prefix && result.startsWith(prefix)) {
+                    result = result.substring(prefix.length);
+                }
+
+                if (suffix && result.endsWith(suffix)) {
+                    result = result.substring(0, result.length - suffix.length);
+                }
+            } else if (state.config.mode === 'C') {
+                const stripFirstN = parseInt(state.config.modeC.stripFirstN) || 0;
+                const stripLastN = parseInt(state.config.modeC.stripLastN) || 0;
+                const stripMidN = parseInt(state.config.modeC.stripMidN) || 0;
+
+                if (stripFirstN > 0 && result.length >= stripFirstN) {
+                    result = result.substring(stripFirstN);
+                }
+
+                if (stripLastN > 0 && result.length >= stripLastN) {
+                    result = result.substring(0, result.length - stripLastN);
+                }
+
+                if (stripMidN > 0 && result.length >= stripMidN) {
+                    const startIdx = Math.floor((result.length - stripMidN) / 2);
+                    result = result.substring(0, startIdx) + result.substring(startIdx + stripMidN);
+                }
+            } else if (state.config.mode === 'B') {
+                const find = state.config.modeB.find;
+                const replace = state.config.modeB.replace;
+                const regex = state.config.modeB.useRegex;
+                const caseInsensitive = state.config.modeB.caseInsensitive;
+
+                if (find) {
+                    try {
+                        if (regex) {
+                            const flags = caseInsensitive ? 'gi' : 'g';
+                            const re = new RegExp(find, flags);
+                            result = result.replace(re, replace);
+                        } else {
+                            // Escape text for regex to perform safe replacement
+                            const escapedFind = find.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                            const flags = caseInsensitive ? 'gi' : 'g';
+                            const re = new RegExp(escapedFind, flags);
+                            result = result.replace(re, replace);
+                        }
+                    } catch (e) {
+                        console.error("Regex replacement runtime error:", e);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // Generate high-fidelity visual representations of text transformations
+        function getDiffVisualizationHTML(original, clean) {
+            if (original === clean) {
+                return `<span class="text-slate-400 font-mono break-all">${escapeHTML(original)}</span>`;
+            }
+
+            const m = original.length;
+            const n = clean.length;
+            const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (original[i - 1] === clean[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+
+            let i = m;
+            let j = n;
+            let diffParts = [];
+
+            while (i > 0 || j > 0) {
+                if (i > 0 && j > 0 && original[i - 1] === clean[j - 1]) {
+                    diffParts.unshift(escapeHTML(original[i - 1]));
+                    i--;
+                    j--;
+                } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                    j--;
+                } else {
+                    const char = original[i - 1];
+                    const charHtml = char.trim() === "" 
+                        ? '<span class="line-through text-rose-500 font-bold bg-rose-950/40 px-0.5 rounded border border-rose-900/30">$_</span>'
+                        : `<span class="line-through text-rose-500 font-bold bg-rose-950/30 px-0.5 rounded border border-rose-900/30">${escapeHTML(char)}</span>`;
+                    diffParts.unshift(charHtml);
+                    i--;
+                }
+            }
+
+            return `<div class="font-mono flex flex-wrap items-center leading-normal break-all">${diffParts.join('')}</div>`;
+        }
+
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Initialize sandbox tester listeners
+        function initSandbox() {
+            const updateSandbox = () => {
+                const rawVal = DOM.sandboxInput.value;
+                if (!rawVal) {
+                    DOM.sandboxOutput.innerHTML = '<span class="text-slate-600 italic font-normal">Awaiting sandbox input...</span>';
+                    return;
+                }
+                const output = applyEngineLogic(rawVal);
+                
+                // Show clean output alongside a subtle badge indicating matching diffs
+                if (rawVal === output) {
+                    DOM.sandboxOutput.innerHTML = `<span class="text-slate-300 font-mono">${escapeHTML(output)}</span> <span class="ml-1 text-[9px] bg-slate-900 border border-slate-800 text-slate-500 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider font-sans">Pass Through</span>`;
+                } else {
+                    DOM.sandboxOutput.innerHTML = `<span class="text-emerald-400 font-mono">${escapeHTML(output)}</span> <span class="ml-1 text-[9px] bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider font-sans">Modified</span>`;
+                }
+            };
+
+            DOM.sandboxInput.addEventListener('input', updateSandbox);
+            
+            // Re-evaluate sandbox when settings are adjusted on the fly
+            [DOM.modeAPrefix, DOM.modeASuffix, DOM.modeATrim, DOM.modeCFirstN, DOM.modeCMidN, DOM.modeCLastN, DOM.modeBFind, DOM.modeBReplace, DOM.modeBRegex, DOM.modeBCase].forEach(el => {
+                el.addEventListener('input', updateSandbox);
+                el.addEventListener('change', updateSandbox);
+            });
+        }
+
+        // Toggle engine layout states
+        function setLogicMode(mode) {
+            state.config.mode = mode;
+            saveConfig();
+
+            // Reset buttons classes
+            DOM.modeABtn.className = "py-2 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border border-transparent";
+            DOM.modeBBtn.className = "py-2 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border border-transparent";
+            DOM.modeCBtn.className = "py-2 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border border-transparent";
+
+            // Hide all panels
+            DOM.panelModeA.classList.add('hidden');
+            DOM.panelModeB.classList.add('hidden');
+            DOM.panelModeC.classList.add('hidden');
+
+            if (mode === 'A') {
+                DOM.modeABtn.classList.add('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/15');
+                DOM.modeBBtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                DOM.modeCBtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                DOM.panelModeA.classList.remove('hidden');
+            } else if (mode === 'B') {
+                DOM.modeBBtn.classList.add('text-amber-400', 'bg-amber-500/10', 'border-amber-500/15');
+                DOM.modeABtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                DOM.modeCBtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                DOM.panelModeB.classList.remove('hidden');
+            } else if (mode === 'C') {
+                DOM.modeCBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/15');
+                DOM.modeABtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                DOM.modeBBtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                DOM.panelModeC.classList.remove('hidden');
+            }
+        }
+
+        // -------------------------------------------------------------
+        // BARCODE PROCESSING & STORAGE UTILS
+        // -------------------------------------------------------------
+        
+        function processBarcodeEntry(originalString) {
+            const raw = originalString.trim();
+            if (!raw) return;
+
+            const clean = applyEngineLogic(raw);
+            const isModified = raw !== clean;
+            
+            const record = {
+                id: Date.now() + Math.random().toString(36).substr(2, 4),
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                raw: raw,
+                clean: clean,
+                modified: isModified
+            };
+
+            // Unshift to place new barcode entries first in history
+            state.history.unshift(record);
+            saveHistory();
+
+            // Refresh dashboards and render barcode rows
+            renderManifestTable();
+            updateDashboardStats();
+
+            // Show interactive user toast
+            if (isModified) {
+                showToast(`Cleaned & loaded: "${clean}"`, 'success');
+            } else {
+                showToast(`Loaded barcode: "${clean}"`, 'info');
+            }
+        }
+
+        function deleteRecord(id) {
+            state.history = state.history.filter(item => item.id !== id);
+            saveHistory();
+            renderManifestTable();
+            updateDashboardStats();
+            showToast('Record deleted.', 'warning');
+            triggerFocusRecapture();
+        }
+
+        function clearAllRecords() {
+            if (state.history.length === 0) return;
+            if (confirm("Are you sure you want to delete all scans in the running session?")) {
+                state.history = [];
+                saveHistory();
+                renderManifestTable();
+                updateDashboardStats();
+                showToast('Manifest session wiped.', 'error');
+            }
+            triggerFocusRecapture();
+        }
+
+        function updateDashboardStats() {
+            const total = state.history.length;
+            const modified = state.history.filter(item => item.modified).length;
+            const direct = total - modified;
+
+            DOM.statTotal.textContent = total;
+            DOM.statModified.textContent = modified;
+            DOM.statDirect.textContent = direct;
+        }
+
+        // -------------------------------------------------------------
+        // DYNAMIC TABLE RENDERING & JSBARCODE INTERACTION
+        // -------------------------------------------------------------
+        
+        function renderManifestTable() {
+            const filterText = DOM.filterInput.value.toLowerCase().trim();
+            const filtered = state.history.filter(item => 
+                item.raw.toLowerCase().includes(filterText) || 
+                item.clean.toLowerCase().includes(filterText)
+            );
+
+            // Toggle table headers vs. Empty state graphics
+            if (filtered.length === 0) {
+                DOM.manifestTbody.innerHTML = '';
+                DOM.manifestEmpty.classList.remove('hidden');
+                return;
+            }
+            DOM.manifestEmpty.classList.add('hidden');
+
+            let html = '';
+            filtered.forEach((item, index) => {
+                // Compute logical display index
+                const displayIndex = filtered.length - index;
+                
+                // Formulate table rows with scannable barcode SVGs
+                html += `
+                    <tr class="hover:bg-slate-900/50 group/row border-b border-slate-900 transition-colors">
+                        <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 group-hover/row:text-indigo-400">
+                            ${displayIndex}
+                        </td>
+                        <td class="py-3 px-3 font-mono text-slate-500 whitespace-nowrap">
+                            ${item.timestamp}
+                        </td>
+                        <td class="py-3 px-3 font-mono text-xs">
+                            ${getDiffVisualizationHTML(item.raw, item.clean)}
+                        </td>
+                        <td class="py-2.5 px-3 text-center">
+                            <div class="barcode-bg-wrapper bg-white py-1 px-2.5 rounded-lg inline-block border border-slate-800 shadow-sm transition-all duration-300 hover:scale-105">
+                                <svg class="jsbarcode-canvas inline-block" data-value="${escapeHTML(item.clean)}"></svg>
+                            </div>
+                        </td>
+                        <td class="py-3 px-2 text-center">
+                            <button 
+                                type="button" 
+                                onclick="deleteRecord('${item.id}')"
+                                class="text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer"
+                                title="Remove scan entry"
+                            >
+                                <i data-lucide="x" class="h-4.5 w-4.5"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            DOM.manifestTbody.innerHTML = html;
+            
+            // Re-hydrate Lucide icons for fresh elements
+            lucide.createIcons();
+
+            // Render linear barcodes via JsBarcode
+            const barcodeElements = DOM.manifestTbody.querySelectorAll('.jsbarcode-canvas');
+            barcodeElements.forEach(el => {
+                const text = el.getAttribute('data-value');
+                try {
+                    JsBarcode(el, text, {
+                        format: "CODE128",
+                        width: 1.1,
+                        height: 32,
+                        displayValue: true,
+                        fontSize: 9,
+                        font: "monospace",
+                        margin: 2,
+                        background: "transparent",
+                        lineColor: "#000000"
+                    });
+                } catch (e) {
+                    console.error("Barcode generation error:", e);
+                    // Downgrade to display simple text label on error
+                    const parent = el.parentNode;
+                    parent.innerHTML = `<span class="text-[10px] text-rose-500 font-bold bg-rose-100 border border-rose-200 px-2 py-1 rounded">Encode Error</span>`;
+                }
+            });
+        }
+
+        // -------------------------------------------------------------
+        // CAMERA SCANNER CONTROLLER (html5-qrcode INTEGRATION)
+        // -------------------------------------------------------------
+        
+        async function detectScannerDevices() {
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                DOM.cameraSelect.innerHTML = '';
+                
+                if (devices && devices.length > 0) {
+                    devices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.id;
+                        option.text = device.label || `Camera ${DOM.cameraSelect.options.length + 1}`;
+                        DOM.cameraSelect.appendChild(option);
+                    });
+                    
+                    // Cache default device
+                    selectedCameraId = devices[0].id;
+                    DOM.btnToggleScanner.disabled = false;
+                } else {
+                    const option = document.createElement('option');
+                    option.text = 'No cameras found';
+                    DOM.cameraSelect.appendChild(option);
+                    DOM.btnToggleScanner.disabled = true;
+                    showToast('No camera devices detected.', 'warning');
+                }
+            } catch (err) {
+                console.error("Error enumerating cameras:", err);
+                DOM.cameraSelect.innerHTML = '<option value="">Permission required</option>';
+            }
+        }
+
+        async function toggleCameraScanner() {
+            const isRunning = html5QrScanner && html5QrScanner.isScanning;
+            
+            if (isRunning) {
+                await stopCameraScanner();
+            } else {
+                const devId = DOM.cameraSelect.value;
+                if (!devId) {
+                    showToast('Please select a camera source.', 'warning');
+                    return;
+                }
+                await startCameraScanner(devId);
+            }
+        }
+
+        async function startCameraScanner(deviceId) {
+            try {
+                // Initialize instance
+                if (!html5QrScanner) {
+                    html5QrScanner = new Html5Qrcode("reader");
+                }
+
+                DOM.btnToggleScanner.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+                DOM.btnToggleScanner.classList.add('bg-rose-600', 'hover:bg-rose-500');
+                DOM.toggleScannerText.textContent = 'Stopping Feed...';
+                DOM.btnToggleScanner.disabled = true;
+
+                // Viewport config
+                const config = {
+                    fps: 15,
+                    qrbox: function(width, height) {
+                        const boxSize = Math.min(width, height) * 0.75;
+                        return { width: boxSize, height: boxSize };
+                    },
+                    aspectRatio: 1.0
+                };
+
+                await html5QrScanner.start(
+                    deviceId,
+                    config,
+                    (decodedText, decodedResult) => {
+                        // Scan success handler
+                        processBarcodeEntry(decodedText);
+                        playScanAudioBeep();
+                        flashScannerViewport();
+                    },
+                    (errorMessage) => {
+                        // Suppress camera capture loops verbose logs
+                    }
+                );
+
+                DOM.btnToggleScanner.disabled = false;
+                DOM.toggleScannerText.textContent = 'Stop Scanner';
+                DOM.toggleScannerIcon.setAttribute('data-lucide', 'video-off');
+                lucide.createIcons();
+
+                DOM.scannerLaser.classList.remove('hidden');
+                DOM.scannerPlaceholder.classList.add('hidden');
+                
+                showToast('Camera feed live.', 'success');
+            } catch (e) {
+                console.error("Failed starting html5QrCode:", e);
+                showToast('Camera initialization failed.', 'error');
+                
+                // Rollback UI to stopped state
+                DOM.btnToggleScanner.disabled = false;
+                DOM.btnToggleScanner.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
+                DOM.btnToggleScanner.classList.remove('bg-rose-600', 'hover:bg-rose-500');
+                DOM.toggleScannerText.textContent = 'Start Scanner';
+                DOM.toggleScannerIcon.setAttribute('data-lucide', 'video');
+                lucide.createIcons();
+                
+                DOM.scannerLaser.classList.add('hidden');
+                DOM.scannerPlaceholder.classList.remove('hidden');
+            }
+        }
+
+        async function stopCameraScanner() {
+            if (!html5QrScanner) return;
+            
+            try {
+                DOM.btnToggleScanner.disabled = true;
+                DOM.toggleScannerText.textContent = 'Stopping Feed...';
+
+                await html5QrScanner.stop();
+                
+                DOM.btnToggleScanner.disabled = false;
+                DOM.btnToggleScanner.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
+                DOM.btnToggleScanner.classList.remove('bg-rose-600', 'hover:bg-rose-500');
+                DOM.toggleScannerText.textContent = 'Start Scanner';
+                DOM.toggleScannerIcon.setAttribute('data-lucide', 'video');
+                lucide.createIcons();
+
+                DOM.scannerLaser.classList.add('hidden');
+                DOM.scannerPlaceholder.classList.remove('hidden');
+                
+                showToast('Camera feed offline.', 'info');
+            } catch (e) {
+                console.error("Error shutting down camera:", e);
+                showToast('Error stopping scanner feed.', 'error');
+            }
+        }
+
+        // Viewport camera success flash
+        function flashScannerViewport() {
+            DOM.scannerFlash.classList.remove('opacity-0');
+            DOM.scannerFlash.classList.add('opacity-40');
+            setTimeout(() => {
+                DOM.scannerFlash.classList.remove('opacity-40');
+                DOM.scannerFlash.classList.add('opacity-0');
+            }, 120);
+        }
+
+        // Web Audio API custom synthesizer beep
+        function playScanAudioBeep() {
+            if (!state.audioBeepEnabled) return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1400, ctx.currentTime); // Crisp, high-frequency scan beep
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.08); // 80 milliseconds
+            } catch (e) {
+                console.warn("Audio Context beep initialization failed:", e);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // UTILITIES & EXPORT ENGINE (CSV / PRINT LAYOUT)
+        // -------------------------------------------------------------
+        
+        function exportSessionCSV() {
+            if (state.history.length === 0) {
+                showToast('No barcode records to export.', 'warning');
+                return;
+            }
+
+            // Headers
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Index,Timestamp,Original Input,Manipulated Result,Was Modified\r\n";
+
+            // Map data
+            state.history.forEach((item, index) => {
+                const displayIndex = state.history.length - index;
+                const row = [
+                    displayIndex,
+                    `"${item.timestamp}"`,
+                    `"${item.raw.replace(/"/g, '""')}"`,
+                    `"${item.clean.replace(/"/g, '""')}"`,
+                    item.modified ? "YES" : "NO"
+                ];
+                csvContent += row.join(",") + "\r\n";
+            });
+
+            // Create download anchor trigger
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `LogixScan_Manifest_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            
+            link.click();
+            document.body.removeChild(link);
+            showToast('CSV manifest sheet downloaded.', 'success');
+            triggerFocusRecapture();
+        }
+
+        function triggerPrintPreview() {
+            if (state.history.length === 0) {
+                showToast('No barcodes to print.', 'warning');
+                return;
+            }
+
+            const printMode = DOM.printModeSelect.value;
+            const printStage = DOM.printStage;
+            printStage.innerHTML = ''; // Reset stage container
+
+            if (printMode === 'labels') {
+                // Sticker label layout styling
+                document.body.className = 'print-labels bg-white';
+                printStage.className = 'print-area print-style-labels';
+                
+                state.history.forEach((item, index) => {
+                    const displayIndex = state.history.length - index;
+                    const card = document.createElement('div');
+                    card.className = 'barcode-print-row';
+                    card.innerHTML = `
+                        <div class="barcode-bg-wrapper">
+                            <svg class="jsbarcode-print" data-value="${escapeHTML(item.clean)}"></svg>
+                        </div>
+                        <div class="print-meta">
+                            Item: #${displayIndex} | Scanned: ${item.timestamp} | Trace: ${escapeHTML(item.raw)}
+                        </div>
+                    `;
+                    printStage.appendChild(card);
+                });
+            } else {
+                // Standard audit sheet report manifest
+                document.body.className = 'print-manifest bg-white';
+                printStage.className = 'print-area';
+                
+                const table = document.createElement('table');
+                table.className = 'print-style-manifest';
+                
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Original Scanned String</th>
+                            <th>Clean Output Value</th>
+                            <th>Barcode Representation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${state.history.map((item, index) => {
+                            const displayIndex = state.history.length - index;
+                            return `
+                                <tr>
+                                    <td>${displayIndex}</td>
+                                    <td>${item.timestamp}</td>
+                                    <td>${escapeHTML(item.raw)}</td>
+                                    <td><strong>${escapeHTML(item.clean)}</strong></td>
+                                    <td>
+                                        <div class="barcode-bg-wrapper">
+                                            <svg class="jsbarcode-print" data-value="${escapeHTML(item.clean)}"></svg>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                `;
+                printStage.appendChild(table);
+            }
+
+            // Render all print-specific barcodes
+            const printBarcodes = printStage.querySelectorAll('.jsbarcode-print');
+            printBarcodes.forEach(el => {
+                const text = el.getAttribute('data-value');
+                try {
+                    JsBarcode(el, text, {
+                        format: "CODE128",
+                        width: 1.4,
+                        height: 40,
+                        displayValue: true,
+                        fontSize: 10,
+                        font: "monospace",
+                        background: "#ffffff",
+                        lineColor: "#000000"
+                    });
+                } catch (e) {
+                    console.error("Barcode print render error:", e);
+                    el.parentNode.innerHTML = `<span style="color:red; font-size:10px;">Encode Error</span>`;
+                }
+            });
+
+            // Trigger browser printer dialog
+            window.print();
+
+            // Revert back body theme variables after print dialog terminates
+            document.body.className = 'bg-gradient-to-br from-slate-950 via-zinc-900 to-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white';
+            printStage.className = 'hidden print-area';
+            printStage.innerHTML = '';
+            
+            showToast('Print command finished.', 'info');
+            triggerFocusRecapture();
+        }
+
+        // Custom toast helper
+        function showToast(message, type = 'info') {
+            const container = DOM.toastContainer;
+            const toast = document.createElement('div');
+            
+            // Toast theme profiles
+            let icon = 'info';
+            let iconColor = 'text-indigo-400';
+            let bgGlow = 'rgba(99, 102, 241, 0.15)';
+            
+            if (type === 'success') {
+                icon = 'check-circle2';
+                iconColor = 'text-emerald-400';
+                bgGlow = 'rgba(16, 185, 129, 0.15)';
+            } else if (type === 'warning') {
+                icon = 'alert-triangle';
+                iconColor = 'text-amber-400';
+                bgGlow = 'rgba(245, 158, 11, 0.15)';
+            } else if (type === 'error') {
+                icon = 'x-circle';
+                iconColor = 'text-rose-400';
+                bgGlow = 'rgba(239, 68, 68, 0.15)';
+            }
+
+            toast.className = `flex items-center gap-3 p-4 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl shadow-black/40 pointer-events-auto transform translate-y-2 opacity-0 transition-all duration-300`;
+            toast.style.boxShadow = `0 10px 15px -3px rgba(0,0,0,0.5), 0 0 12px 1px ${bgGlow}`;
+            
+            toast.innerHTML = `
+                <div class="${iconColor}">
+                    <i data-lucide="${icon}" class="h-5 w-5"></i>
+                </div>
+                <div class="text-xs font-semibold text-slate-200">${escapeHTML(message)}</div>
+            `;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            // Slide up & fade in
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Timeout slide down, fade out, and self-terminate
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        // -------------------------------------------------------------
+        // INTERACTIVE EVENTS BINDINGS
+        // -------------------------------------------------------------
+        
+        function initEventListeners() {
+            // Handle barcode manual input submit
+            DOM.scanForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const val = DOM.scanInput.value.trim();
+                if (val) {
+                    processBarcodeEntry(val);
+                    DOM.scanInput.value = '';
+                }
+                triggerFocusRecapture();
+            });
+
+            // Handle Camera Select and start/stop clicks
+            DOM.btnToggleScanner.addEventListener('click', toggleCameraScanner);
+            DOM.cameraSelect.addEventListener('change', () => {
+                const isRunning = html5QrScanner && html5QrScanner.isScanning;
+                if (isRunning) {
+                    // Switch camera source on the fly
+                    stopCameraScanner().then(() => {
+                        const devId = DOM.cameraSelect.value;
+                        if (devId) startCameraScanner(devId);
+                    });
+                }
+            });
+
+            // Toggle Audio scan beep sound settings
+            DOM.btnToggleBeep.addEventListener('click', () => {
+                state.audioBeepEnabled = !state.audioBeepEnabled;
+                if (state.audioBeepEnabled) {
+                    DOM.beepStatusIcon.setAttribute('data-lucide', 'volume-2');
+                    DOM.btnToggleBeep.classList.remove('text-slate-500', 'border-slate-800');
+                    DOM.btnToggleBeep.classList.add('text-slate-400');
+                    showToast('Scan audio notifications enabled.', 'info');
+                } else {
+                    DOM.beepStatusIcon.setAttribute('data-lucide', 'volume-x');
+                    DOM.btnToggleBeep.classList.remove('text-slate-400');
+                    DOM.btnToggleBeep.classList.add('text-slate-500', 'border-slate-900');
+                    showToast('Audio notifications muted.', 'info');
+                }
+                lucide.createIcons();
+                triggerFocusRecapture();
+            });
+
+            DOM.modeABtn.addEventListener('click', () => {
+                setLogicMode('A');
+                renderManifestTable();
+                triggerFocusRecapture();
+            });
+            DOM.modeBBtn.addEventListener('click', () => {
+                setLogicMode('B');
+                renderManifestTable();
+                triggerFocusRecapture();
+            });
+            DOM.modeCBtn.addEventListener('click', () => {
+                setLogicMode('C');
+                renderManifestTable();
+                triggerFocusRecapture();
+            });
+
+            // Mode A interactive configuration changes
+            DOM.modeAPrefix.addEventListener('input', (e) => {
+                state.config.modeA.prefix = e.target.value;
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeASuffix.addEventListener('input', (e) => {
+                state.config.modeA.suffix = e.target.value;
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeATrim.addEventListener('change', (e) => {
+                state.config.modeA.stripWhitespace = e.target.checked;
+                saveConfig();
+                renderManifestTable();
+            });
+
+            // Mode C interactive configuration changes
+            DOM.modeCFirstN.addEventListener('input', (e) => {
+                state.config.modeC.stripFirstN = Math.max(0, parseInt(e.target.value) || 0);
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeCMidN.addEventListener('input', (e) => {
+                state.config.modeC.stripMidN = Math.max(0, parseInt(e.target.value) || 0);
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeCLastN.addEventListener('input', (e) => {
+                state.config.modeC.stripLastN = Math.max(0, parseInt(e.target.value) || 0);
+                saveConfig();
+                renderManifestTable();
+            });
+
+            // Mode B interactive configuration changes
+            DOM.modeBFind.addEventListener('input', (e) => {
+                state.config.modeB.find = e.target.value;
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeBReplace.addEventListener('input', (e) => {
+                state.config.modeB.replace = e.target.value;
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeBRegex.addEventListener('change', (e) => {
+                state.config.modeB.useRegex = e.target.checked;
+                saveConfig();
+                renderManifestTable();
+            });
+            DOM.modeBCase.addEventListener('change', (e) => {
+                state.config.modeB.caseInsensitive = e.target.checked;
+                saveConfig();
+                renderManifestTable();
+            });
+
+            // Table filter input searches
+            DOM.filterInput.addEventListener('input', renderManifestTable);
+
+            // Action triggers
+            DOM.btnExportCsv.addEventListener('click', exportSessionCSV);
+            DOM.btnPrintLayout.addEventListener('click', triggerPrintPreview);
+            DOM.btnClearAll.addEventListener('click', clearAllRecords);
+        }
+    </script>
+</body>
+</html>
