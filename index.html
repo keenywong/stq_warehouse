@@ -827,6 +827,7 @@
 
         // DOM Element Cache
         const DOM = {
+            toastContainer: document.getElementById('toast-container'),
             scanForm: document.getElementById('scan-form'),
             scanInput: document.getElementById('scan-input'),
             inputStatusIcon: document.getElementById('input-status-icon'),
@@ -1764,6 +1765,7 @@
                 }
                 triggerFocusRecapture();
             });
+
 
             // Handle Camera Select and start/stop clicks
             DOM.btnToggleScanner.addEventListener('click', toggleCameraScanner);
